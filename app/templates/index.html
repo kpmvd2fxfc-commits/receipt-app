@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Receipt Tracker AI</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f6f7fb;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .muted {
+      color: #6b7280;
+      margin-bottom: 18px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input[type="file"] {
+      font-size: 16px;
+    }
+
+    button {
+      background: #111827;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.92;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .empty {
+      color: #9ca3af;
+      font-size: 15px;
+    }
+
+    .receipt-item {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 0;
+    }
+
+    .receipt-item:last-child {
+      border-bottom: none;
+    }
+
+    .pill {
+      display: inline-block;
+      background: #eef2ff;
+      color: #3730a3;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .table-like div {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .table-like div:last-child {
+      border-bottom: none;
+    }
+
+    .success {
+      background: #ecfdf5;
+      color: #065f46;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .error {
+      background: #fef2f2;
+      color: #991b1b;
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .loading {
+      display: none;
+      margin-top: 12px;
+      color: #374151;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Receipt Tracker AI</h1>
+      <div class="muted">
+        iPhone-friendly app for UAE grocery receipts. Snap a receipt, extract items with AI, and track daily spending.
+      </div>
+
+      <form id="scanForm" class="row">
+        <input type="file" id="receiptFile" name="file" accept="image/*,application/pdf" capture="environment" required />
+        <button type="submit">Scan receipt</button>
+      </form>
+
+      <div id="loading" class="loading">Scanning receipt...</div>
+      <div id="success" class="success">Receipt scanned successfully.</div>
+      <div id="error" class="error"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="section-title">Daily spending</div>
+        <div id="dailySpending" class="table-like">
+          <div class="empty">No data yet.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Average prices</div>
+        <div id="averagePrices" class="table-like">
+          <div class="empty">No data yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">All receipts</div>
+      <div id="allReceipts">
+        <div class="empty">No receipts scanned yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadDashboard() {
+      try {
+        const dailyRes = await fetch('/daily-spending');
+        const avgRes = await fetch('/average-prices');
+        const receiptsRes = await fetch('/receipts');
+
+        const daily = await dailyRes.json();
+        const avg = await avgRes.json();
+        const receipts = await receiptsRes.json();
+
+        renderDaily(daily);
+        renderAverage(avg);
+        renderReceipts(receipts);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderDaily(data) {
+      const el = document.getElementById('dailySpending');
+      if (!data || !data.length) {
+        el.innerHTML = '<div class="empty">No data yet.</div>';
+        return;
+      }
+      el.innerHTML = data.map(item => `
+        <div><strong>${item.date || ''}</strong> — ${item.total || 0} ${item.currency || 'AED'}</div>
+      `).join('');
+    }
+
+    function renderAverage(data) {
+      const el = document.getElementById('averagePrices');
+      if (!data || !data.length) {
+        el.innerHTML = '<div class="empty">No data yet.</div>';
+        return;
+      }
+      el.innerHTML = data.map(item => `
+        <div><strong>${item.name || 'Item'}</strong> — ${item.average_price || 0} ${item.currency || 'AED'}</div>
+      `).join('');
+    }
+
+    function renderReceipts(data) {
+      const el = document.getElementById('allReceipts');
+      if (!data || !data.length) {
+        el.innerHTML = '<div class="empty">No receipts scanned yet.</div>';
+        return;
+      }
+
+      el.innerHTML = data.map(r => `
+        <div class="receipt-item">
+          <div><strong>${r.store_name || 'Unknown store'}</strong></div>
+          <div>${r.receipt_date || 'No date'} — ${r.total_amount || 0} ${r.currency || 'AED'}</div>
+          <div class="pill">${(r.items_count || 0)} items</div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('scanForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const fileInput = document.getElementById('receiptFile');
+      const file = fileInput.files[0];
+      const loading = document.getElementById('loading');
+      const success = document.getElementById('success');
+      const error = document.getElementById('error');
+
+      success.style.display = 'none';
+      error.style.display = 'none';
+
+      if (!file) {
+        error.textContent = 'Please choose a receipt file first.';
+        error.style.display = 'block';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      loading.style.display = 'block';
+
+      try {
+        const res = await fetch('/scan', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || 'Upload failed');
+        }
+
+        success.style.display = 'block';
+        fileInput.value = '';
+        await loadDashboard();
+      } catch (err) {
+        error.textContent = err.message || 'Something went wrong.';
+        error.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>
